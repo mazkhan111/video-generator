@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language Video Weaver - Final</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-playfair { font-family: 'Playfair Display', serif; }
+        .font-roboto-mono { font-family: 'Roboto Mono', monospace; }
+        .tab-btn.active { background-color: #4f46e5; color: white; }
+        .template-item.selected { border: 3px solid #4f46e5; transform: scale(1.05); }
+        .btn-disabled { cursor: not-allowed; opacity: 0.5; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl md:text-5xl font-bold text-white font-playfair">Language Video Weaver</h1>
+            <p class="text-lg text-gray-400 mt-2">The definitive tool for creating language learning videos.</p>
+        </header>
+        
+        <div id="status-indicator" class="text-center bg-gray-800 p-3 rounded-lg mb-6">
+            <p id="status-text" class="text-lg font-medium text-yellow-400">Initializing Video Engine... This may take a moment.</p>
+        </div>
+
+        <div class="tab-header flex border-b border-gray-700 mb-6 flex-wrap">
+            <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('content')">1. Content</button>
+            <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('appearance')">2. Appearance</button>
+            <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('voice')">3. Voice</button>
+            <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('generate')">4. Generate</button>
+        </div>
+
+        <!-- CONTENT TAB -->
+        <div id="content" class="tab-content">
+            <h2 class="text-2xl font-bold mb-4">Enter Your Sentences</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <label for="source-lang-text" class="block text-sm font-medium text-gray-300 mb-2">Source Language Sentences (One per line)</label>
+                    <textarea id="source-lang-text" rows="10" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500" placeholder="Guten Tag!"></textarea>
+                </div>
+                <div>
+                    <label for="english-text" class="block text-sm font-medium text-gray-300 mb-2">English Translation Sentences (One per line)</label>
+                    <textarea id="english-text" rows="10" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500" placeholder="Good day!"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- APPEARANCE TAB -->
+        <div id="appearance" class="tab-content hidden">
+            <h2 class="text-2xl font-bold mb-4">Video Appearance</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Video Background</h3>
+                    <div id="background-gallery" class="grid grid-cols-3 gap-4"></div>
+                     <div class="mt-4">
+                        <label for="video-upload" class="w-full text-center cursor-pointer bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg inline-block">Upload Custom Video</label>
+                        <input type="file" id="video-upload" class="hidden" accept="video/mp4,video/webm">
+                        <p class="text-xs text-gray-500 mt-2">Recommended: 16:9 aspect ratio (e.g., 1920x1080). Max 50MB.</p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Text Style</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="fontFamily">Font Combination:</label>
+                            <select id="fontFamily" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 mt-1">
+                                <option value="Inter, sans-serif">Modern (Inter)</option>
+                                <option value="Playfair Display, serif">Elegant (Playfair Display)</option>
+                                <option value="Roboto Mono, monospace">Tech (Roboto Mono)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="animationType">Text Animation:</label>
+                             <select id="animationType" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 mt-1">
+                                <option value="fadeIn">Subtle Fade In</option>
+                                <option value="slideUp">Smooth Slide Up</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VOICE TAB -->
+        <div id="voice" class="tab-content hidden">
+            <h2 class="text-2xl font-bold mb-4">Voice Settings</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Source Voice</h3>
+                    <select id="sourceVoiceSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2"></select>
+                    <button class="btn-preview-voice mt-2 bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md text-sm" data-type="source">Preview Voice</button>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Target Voice</h3>
+                    <select id="targetVoiceSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2"></select>
+                    <button class="btn-preview-voice mt-2 bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md text-sm" data-type="target">Preview Voice</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GENERATE TAB -->
+        <div id="generate" class="tab-content hidden">
+             <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h2 class="text-2xl font-bold mb-4">Preview</h2>
+                    <div class="aspect-video bg-black rounded-lg overflow-hidden border-2 border-gray-700">
+                        <canvas id="preview-canvas"></canvas>
+                    </div>
+                </div>
+                <div class="flex flex-col justify-center">
+                    <h2 class="text-2xl font-bold mb-4">Generate Your Video</h2>
+                    <div class="bg-indigo-900/50 border border-indigo-700 text-indigo-200 px-4 py-3 rounded-lg mb-4">
+                        <h4 class="font-bold">Important Notice</h4>
+                        <p class="text-sm">The final video file will be **silent** due to browser security. Audio will play from your speakers during generation. Use a screen recorder to capture the video with sound.</p>
+                    </div>
+                     <button id="generate-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 btn-disabled" disabled>
+                        Generate Video
+                    </button>
+                    <div class="w-full bg-gray-700 rounded-full h-4 mt-4 hidden" id="progress-container">
+                        <div id="progress-bar" class="bg-green-500 h-4 rounded-full text-xs text-black text-center font-bold leading-4 transition-width duration-300" style="width: 0%">0%</div>
+                    </div>
+                    <a id="download-link" class="hidden w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 mt-4" download="language_video.mp4">
+                        Download SILENT Video (.mp4)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FFmpeg Script -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
+
+    <script>
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        let ffmpeg;
+
+        // --- DOM Elements & State ---
+        const allTabs = document.querySelectorAll('.tab-content');
+        const allTabBtns = document.querySelectorAll('.tab-btn');
+        const statusText = document.getElementById('status-text');
+        const generateBtn = document.getElementById('generate-btn');
+        const downloadLink = document.getElementById('download-link');
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
+        let selectedBackground = { type: 'video', url: 'https://cdn.pixabay.com/video/2023/08/23/176916-857508212_large.mp4' };
+
+        // --- Core Functions ---
+        const showTab = (tabId) => {
+            allTabs.forEach(tab => tab.classList.add('hidden'));
+            document.getElementById(tabId)?.classList.remove('hidden');
+            allTabBtns.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('onclick') === `showTab('${tabId}')`) {
+                    btn.classList.add('active');
+                }
+            });
+        };
+
+        const initialize = async () => {
+            try {
+                ffmpeg = createFFmpeg({
+                    log: true,
+                    corePath: "https://unpkg.com/@ffmpeg/core-st@0.11.0/dist/ffmpeg-core.js",
+                });
+                await ffmpeg.load();
+                statusText.textContent = "Engine Ready. Please add content to begin.";
+                statusText.parentElement.classList.replace('bg-gray-800', 'bg-green-900');
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('btn-disabled');
+            } catch (err) {
+                statusText.textContent = "Error: Failed to load video engine. Please refresh.";
+                statusText.parentElement.classList.replace('bg-gray-800', 'bg-red-900');
+                console.error(err);
+            }
+            await populateVoices();
+            populateBackgrounds();
+            showTab('content');
+        };
+        
+        // --- Voice & Speech ---
+        const populateVoices = () => new Promise(resolve => {
+            const getAndFill = () => {
+                const voices = speechSynthesis.getVoices();
+                if (voices.length === 0) { setTimeout(getAndFill, 100); return; }
+
+                const sourceSelect = document.getElementById('sourceVoiceSelect');
+                const targetSelect = document.getElementById('targetVoiceSelect');
+                sourceSelect.innerHTML = ''; targetSelect.innerHTML = '';
+                
+                voices.forEach(voice => {
+                    const option = new Option(`${voice.name} (${voice.lang})`, voice.name);
+                    if (voice.lang.startsWith('en')) targetSelect.add(option);
+                    else sourceSelect.add(option);
+                });
+                resolve();
+            };
+            speechSynthesis.onvoiceschanged = getAndFill;
+            getAndFill();
+        });
+
+        const speak = (text, voiceName) => new Promise(resolve => {
+            speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voice = speechSynthesis.getVoices().find(v => v.name === voiceName);
+            if (voice) utterance.voice = voice;
+            utterance.onend = () => setTimeout(resolve, 200);
+            utterance.onerror = e => { console.error(e); resolve(); };
+            speechSynthesis.speak(utterance);
+        });
+
+        // --- Appearance ---
+        const populateBackgrounds = () => {
+            const gallery = document.getElementById('background-gallery');
+            const backgrounds = [
+                { type: 'video', url: 'https://cdn.pixabay.com/video/2023/08/23/176916-857508212_large.mp4', thumb: 'https://i.vimeocdn.com/video/1710243179-3d4439304323b72b012d43b747864f77c8e9b0d618956b6131c36093d52033c6-d_640x360.jpg' },
+                { type: 'video', url: 'https://cdn.pixabay.com/video/2024/02/26/200789-918913949_large.mp4', thumb: 'https://i.vimeocdn.com/video/1802181534-318e826f041b3769177fcf5529f5f0b533a1e263c5a61d15c891f7d451167761-d_640x360.jpg'},
+                { type: 'video', url: 'https://cdn.pixabay.com/video/2023/09/25/181439-868548911_large.mp4', thumb: 'https://i.vimeocdn.com/video/1726589710-5e5861463133857551062e26466c1529a60e835e5d31252089408a38a7863558-d_640x360.jpg'}
+            ];
+            gallery.innerHTML = '';
+            backgrounds.forEach((bg, index) => {
+                const item = document.createElement('div');
+                item.className = 'template-item aspect-video cursor-pointer rounded-lg border-2 border-transparent hover:border-indigo-400 transition-transform duration-200';
+                item.style.backgroundImage = `url(${bg.thumb})`;
+                item.style.backgroundSize = 'cover';
+                if (index === 0) item.classList.add('selected');
+
+                item.onclick = () => {
+                    gallery.querySelectorAll('.template-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    selectedBackground = bg;
+                };
+                gallery.appendChild(item);
+            });
+        };
+
+        // --- Video Generation ---
+        const drawFrame = (ctx, bgFrame, text1, text2, opacity1, opacity2, yOffset1, yOffset2) => {
+            const { width, height } = ctx.canvas;
+            if (bgFrame) ctx.drawImage(bgFrame, 0, 0, width, height);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, width, height);
+
+            const wrapText = (context, text, maxWidth) => {
+                if (!text) return [];
+                const words = text.split(' '); let lines = []; let currentLine = words[0] || '';
+                for (let i = 1; i < words.length; i++) {
+                    if (context.measureText(currentLine + " " + words[i]).width < maxWidth) {
+                        currentLine += " " + words[i];
+                    } else { lines.push(currentLine); currentLine = words[i]; }
+                }
+                lines.push(currentLine); return lines;
+            };
+
+            const baseFontSize = width / 22;
+            const font = `bold ${baseFontSize}px ${document.getElementById('fontFamily').value}`;
+            ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const maxWidth = width - 120; const lineHeight = baseFontSize * 1.25;
+
+            if (text1) {
+                const lines = wrapText(ctx, text1, maxWidth); const totalHeight = (lines.length - 1) * lineHeight;
+                ctx.fillStyle = `rgba(255, 255, 255, ${opacity1})`;
+                lines.forEach((line, i) => ctx.fillText(line, width / 2, height / 2 - (height / 10) - (totalHeight / 2) + (i * lineHeight) + yOffset1));
+            }
+            if (text2) {
+                const lines = wrapText(ctx, text2, maxWidth); const totalHeight = (lines.length - 1) * lineHeight;
+                ctx.fillStyle = `rgba(220, 255, 220, ${opacity2})`;
+                lines.forEach((line, i) => ctx.fillText(line, width / 2, height / 2 + (height / 10) - (totalHeight / 2) + (i * lineHeight) + yOffset2));
+            }
+        };
+
+        generateBtn.addEventListener('click', async () => {
+            generateBtn.disabled = true; generateBtn.classList.add('btn-disabled');
+            downloadLink.classList.add('hidden');
+            progressContainer.classList.remove('hidden'); progressBar.style.width = '0%';
+
+            const sourceSentences = document.getElementById('source-lang-text').value.split('\n').filter(Boolean);
+            const englishSentences = document.getElementById('english-text').value.split('\n').filter(Boolean);
+            if (sourceSentences.length === 0 || sourceSentences.length !== englishSentences.length) {
+                alert("Please ensure both text areas have an equal number of sentences.");
+                generateBtn.disabled = false; generateBtn.classList.remove('btn-disabled'); return;
+            }
+
+            const canvas = document.getElementById('preview-canvas');
+            const W = 1280, H = 720; canvas.width = W; canvas.height = H;
+            const ctx = canvas.getContext('2d');
+            
+            // Load background video into ffmpeg
+            if (selectedBackground.type === 'file') {
+                ffmpeg.FS('writeFile', 'bg.mp4', await fetchFile(selectedBackground.file));
+            } else {
+                 ffmpeg.FS('writeFile', 'bg.mp4', await fetchFile(selectedBackground.url));
+            }
+
+            const clipNames = [];
+            for (let i = 0; i < sourceSentences.length; i++) {
+                progressBar.style.width = `${((i + 1) / sourceSentences.length) * 100}%`;
+                progressBar.textContent = `${Math.round(((i + 1) / sourceSentences.length) * 100)}%`;
+
+                const source = sourceSentences[i], target = englishSentences[i];
+                const sourceDuration = Math.max(2.5, source.length / 15), targetDuration = Math.max(2.5, target.length / 15);
+                const totalDuration = sourceDuration + targetDuration + 1.5;
+
+                // Create a temporary canvas to extract frames from the background video
+                const bgCanvas = document.createElement('canvas');
+                bgCanvas.width = W; bgCanvas.height = H;
+                const bgCtx = bgCanvas.getContext('2d');
+                const bgVideoEl = document.createElement('video');
+                bgVideoEl.muted = true;
+                bgVideoEl.src = URL.createObjectURL(new Blob([ffmpeg.FS('readFile', 'bg.mp4')]));
+                
+
+                // Animate frames
+                const totalFrames = Math.ceil(totalDuration * 30); // FPS set to 30
+                for (let j = 0; j < totalFrames; j++) {
+                    const timeInSeconds = j / 30;
+                    bgVideoEl.currentTime = timeInSeconds % 10; // Loop background
+                    await new Promise(r => { bgVideoEl.onseeked = () => r(); if(bgVideoEl.seekable.length === 0) r();});
+                    bgCtx.drawImage(bgVideoEl, 0, 0, W, H);
+                    const bgFrame = bgCtx.canvas;
+
+                    let op1 = 0, op2 = 0, y1 = 0, y2 = 0;
+                    const animType = document.getElementById('animationType').value;
+                    const animStart1 = 0.5, animEnd1 = animStart1 + sourceDuration;
+                    const animStart2 = animEnd1 + 0.5;
+
+                    if (timeInSeconds >= animStart1) op1 = 1;
+                    if (timeInSeconds >= animStart2) op2 = 1;
+                    
+                    if (animType === 'fadeIn') {
+                        if(timeInSeconds >= animStart1 && timeInSeconds < animStart1 + 1) op1 = (timeInSeconds-animStart1);
+                        if(timeInSeconds >= animStart2 && timeInSeconds < animStart2 + 1) op2 = (timeInSeconds-animStart2);
+                    } else if (animType === 'slideUp') {
+                         if(timeInSeconds >= animStart1 && timeInSeconds < animStart1 + 1) { op1=1; y1 = (1 - (timeInSeconds-animStart1)*2) * 30; }
+                         if(timeInSeconds >= animStart2 && timeInSeconds < animStart2 + 1) { op2=1; y2 = (1 - (timeInSeconds-animStart2)*2) * 30; }
+                    }
+                    
+                    drawFrame(ctx, bgFrame, source, target, op1, op2, y1, y2);
+                    const frameData = ctx.getImageData(0, 0, W, H).data;
+                    await ffmpeg.FS('writeFile', `frame${j}.rgba`, frameData);
+                }
+                
+                // Create silent audio track
+                await ffmpeg.run('-f', 'lavfi', '-i', `anullsrc=r=44100`, '-t', `${totalDuration}`, `silent_audio_${i}.mp3`);
+                await ffmpeg.run('-r', `30`, '-s', `${W}x${H}`, '-pixel_format', 'rgba', '-i', 'frame%d.rgba', '-i', `silent_audio_${i}.mp3`, '-c:v', 'libx264', '-crf', '25', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', `clip_${i}.mp4`);
+                clipNames.push(`clip_${i}.mp4`);
+
+                await speak(source, document.getElementById('sourceVoiceSelect').value);
+                await speak(target, document.getElementById('targetVoiceSelect').value);
+            }
+            
+            const fileList = clipNames.map(name => `file '${name}'`).join('\n');
+            await ffmpeg.FS('writeFile', 'filelist.txt', fileList);
+            await ffmpeg.run('-f', 'concat', '-safe', '0', '-i', 'filelist.txt', '-c', 'copy', 'final_output.mp4');
+
+            const data = ffmpeg.FS('readFile', 'final_output.mp4');
+            downloadLink.href = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+            downloadLink.classList.remove('hidden');
+            
+            generateBtn.disabled = false; generateBtn.classList.remove('btn-disabled');
+        });
+
+        // --- Event Listeners and Initial Load ---
+        document.querySelectorAll('.btn-preview-voice').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                const voiceSelect = document.getElementById(`${type}VoiceSelect`);
+                speak(`This is a preview of the selected voice.`, voiceSelect.value);
+            });
+        });
+        
+        document.getElementById('video-upload').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('video/')) {
+                 if (file.size > 50 * 1024 * 1024) {
+                    alert('File is too large. Please select a video under 50MB.');
+                    return;
+                }
+                const url = URL.createObjectURL(file);
+                selectedBackground = { type: 'file', url: url, file: file };
+                
+                document.querySelectorAll('#background-gallery .template-item').forEach(el => el.classList.remove('selected'));
+                alert('Custom video background selected.');
+            } else {
+                alert('Please select a valid video file (MP4, WebM).');
+            }
+        });
+
+        initialize();
+        window.showTab = showTab;
+    </script>
+</body>
+</html>
