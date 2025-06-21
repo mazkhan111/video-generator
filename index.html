@@ -9,7 +9,6 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .font-playfair { font-family: 'Playfair Display', serif; }
-        .font-roboto-mono { font-family: 'Roboto Mono', monospace; }
         .tab-btn.active { background-color: #4f46e5; color: white; }
         .template-item.selected { border: 3px solid #4f46e5; transform: scale(1.05); }
         .btn-disabled { cursor: not-allowed; opacity: 0.5; }
@@ -21,18 +20,18 @@
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         <header class="text-center mb-6">
             <h1 class="text-4xl md:text-5xl font-bold text-white font-playfair">Language Video Weaver</h1>
-            <p class="text-lg text-gray-400 mt-2">The definitive tool for creating language learning videos.</p>
+            <p class="text-lg text-gray-400 mt-2">The Definitive Tool for Language Learning Videos</p>
         </header>
         
         <div id="status-indicator" class="text-center bg-green-800 p-3 rounded-lg mb-6">
-            <p id="status-text" class="text-lg font-medium text-green-300">Ready to create.</p>
+            <p id="status-text" class="text-lg font-medium text-green-300">Ready to Create</p>
         </div>
 
         <div class="tab-header flex border-b border-gray-700 mb-6 flex-wrap">
             <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('content')">1. Content</button>
             <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('appearance')">2. Appearance</button>
             <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('voice')">3. Voice</button>
-            <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('generate')">4. Present & Record</button>
+            <button class="tab-btn py-2 px-4 font-semibold rounded-t-lg transition-colors" onclick="showTab('generate')">4. Generate</button>
         </div>
 
         <!-- CONTENT TAB -->
@@ -106,42 +105,48 @@
 
         <!-- GENERATE TAB -->
         <div id="generate" class="tab-content hidden">
-            <div class="text-center bg-gray-800 p-8 rounded-lg">
-                <h2 class="text-2xl font-bold mb-4">Present & Record Your Video</h2>
-                <p class="text-gray-400 mb-6 max-w-2xl mx-auto">This tool will play your video in full screen with synchronized audio. To save your final video, you must use a screen recording tool.</p>
-                 <div class="bg-indigo-900/50 border border-indigo-700 text-indigo-200 px-4 py-3 rounded-lg mb-6">
-                    <h4 class="font-bold">Instructions</h4>
-                    <p class="text-sm text-left mt-2">1. Get your screen recorder ready (like OBS Studio, or your computer's built-in tool).<br>2. Click the button below to start the full-screen presentation.<br>3. Start your screen recording.<br>4. When finished, stop the recording to get your final video file with sound.</p>
+             <div class="grid md:grid-cols-2 gap-8">
+                <div class="flex flex-col justify-center">
+                    <h2 class="text-2xl font-bold mb-4">Generate Your Video</h2>
+                    <div class="bg-indigo-900/50 border border-indigo-700 text-indigo-200 px-4 py-3 rounded-lg mb-4">
+                        <h4 class="font-bold">Important Notice</h4>
+                        <p class="text-sm">The final video file will be **silent** due to browser security restrictions. The audio will play from your speakers during generation.</p>
+                        <p class="text-sm mt-2">For a final video with sound, please use a screen recorder (like OBS Studio or your OS's built-in tool) while the preview plays on the right.</p>
+                    </div>
+                     <button id="generate-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
+                        Generate & Preview Video
+                    </button>
+                    <div class="w-full bg-gray-700 rounded-full h-4 mt-4 hidden" id="progress-container">
+                        <div id="progress-bar" class="bg-green-500 h-4 rounded-full text-xs text-white text-center font-bold leading-4 transition-width duration-300" style="width: 0%"></div>
+                    </div>
+                    <a id="download-link" class="hidden w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 mt-4" download="language_video.webm">
+                        Download SILENT Video (.webm)
+                    </a>
                 </div>
-                <button id="start-presentation-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 text-lg">
-                    Start Full Screen Presentation
-                </button>
-            </div>
-        </div>
-        
-        <!-- Presentation Panel (Initially Hidden) -->
-        <div id="presentation-panel" class="hidden fixed inset-0 bg-black z-50">
-            <video id="presentation-video" class="absolute w-full h-full object-cover" loop muted></video>
-            <canvas id="presentation-canvas" class="absolute w-full h-full"></canvas>
-            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 w-3/4">
-                 <div class="w-full bg-gray-700/50 rounded-full h-2.5">
-                    <div id="presentation-progress" class="bg-indigo-500 h-2.5 rounded-full transition-width duration-300" style="width: 0%"></div>
+                 <div>
+                    <h2 class="text-2xl font-bold mb-4">Live Preview & Generation</h2>
+                    <div class="aspect-video bg-black rounded-lg overflow-hidden border-2 border-gray-700 relative">
+                        <video id="preview-video" class="absolute w-full h-full object-cover" loop muted playsinline></video>
+                        <canvas id="preview-canvas" class="absolute w-full h-full"></canvas>
+                    </div>
                 </div>
             </div>
-            <div id="exit-presentation" class="absolute top-5 right-5 text-white text-4xl cursor-pointer hover:text-indigo-400 transition" title="Exit Presentation (Esc)">&times;</div>
         </div>
     </div>
 
     <script>
-        let isPlaying = false;
+        let mediaRecorder;
+        let recordedChunks = [];
 
         // --- DOM Elements ---
         const allTabs = document.querySelectorAll('.tab-content');
         const allTabBtns = document.querySelectorAll('.tab-btn');
-        const setupPanel = document.getElementById('setup-panel');
-        const presentationPanel = document.getElementById('presentation-panel');
-        const canvas = document.getElementById('presentation-canvas');
-        const presentationVideo = document.getElementById('presentation-video');
+        const generateBtn = document.getElementById('generate-btn');
+        const downloadLink = document.getElementById('download-link');
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
+        const previewCanvas = document.getElementById('preview-canvas');
+        const previewVideo = document.getElementById('preview-video');
         
         // --- Core Functions ---
         const showTab = (tabId) => {
@@ -159,6 +164,8 @@
             await populateVoices();
             populateBackgrounds();
             showTab('content');
+            previewCanvas.width = 1280;
+            previewCanvas.height = 720;
         };
         
         // --- Voice & Speech ---
@@ -183,7 +190,6 @@
         });
 
         const speak = (text, voiceName) => new Promise(resolve => {
-            if (!isPlaying) { resolve(); return; }
             speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             const voice = speechSynthesis.getVoices().find(v => v.name === voiceName);
@@ -212,17 +218,18 @@
                 item.onclick = () => {
                     gallery.querySelectorAll('.template-item').forEach(el => el.classList.remove('selected'));
                     item.classList.add('selected');
-                    presentationVideo.src = bg.url;
+                    previewVideo.src = bg.url;
                 };
                 gallery.appendChild(item);
             });
-            presentationVideo.src = backgrounds[0].url;
+            previewVideo.src = backgrounds[0].url;
         };
 
-        // --- Presentation & Drawing Logic ---
+        // --- Video Generation ---
         const drawFrame = (ctx, text1, text2, opacity1, opacity2, yOffset1, yOffset2) => {
             const { width, height } = ctx.canvas;
             ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(previewVideo, 0, 0, width, height); // Draw video background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'; // Dark overlay for readability
             ctx.fillRect(0, 0, width, height);
 
@@ -257,40 +264,7 @@
             ctx.shadowBlur = 0;
         };
         
-        const runPresentation = async () => {
-            const sentencePairs = document.getElementById('source-lang-text').value.split('\n')
-                .map((line, i) => ({ source: line.trim(), target: document.getElementById('english-text').value.split('\n')[i]?.trim() }))
-                .filter(p => p.source && p.target);
-            
-            if (sentencePairs.length === 0) {
-                alert("Please enter at least one valid sentence pair in the 'Content' tab.");
-                return;
-            }
-            
-            document.body.style.overflow = 'hidden';
-            presentationPanel.classList.remove('hidden');
-            
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-
-            isPlaying = true;
-            presentationVideo.play();
-            
-            for (let i = 0; i < sentencePairs.length; i++) {
-                if (!isPlaying) break;
-                const percent = (i / sentencePairs.length) * 100;
-                document.getElementById('presentation-progress').style.width = `${percent}%`;
-                
-                const { source, target } = sentencePairs[i];
-                await animateScene(ctx, source, target, speak);
-                if (isPlaying) await new Promise(r => setTimeout(r, 1500));
-            }
-            
-            stopPresentation();
-        };
-
-        const animateScene = async (ctx, text1, text2, speakCallback) => {
+        const animateScene = async (ctx, text1, text2) => {
             const animationType = document.getElementById('animationType').value;
             const sourceVoice = document.getElementById('sourceVoiceSelect').value;
             const targetVoice = document.getElementById('targetVoiceSelect').value;
@@ -298,7 +272,6 @@
 
             const animate = async (isSource) => {
                 for (let t = 0; t <= 1; t += 1 / (FPS * 0.5)) { // 0.5 second animation
-                    if (!isPlaying) return;
                     let opacity = 0, yOffset = 0;
                     if (animationType === 'fadeIn') opacity = t;
                     if (animationType === 'slideUp') { opacity = 1; yOffset = (1 - t) * 30; }
@@ -307,40 +280,61 @@
                     if (isSource) drawFrame(ctx, text1, null, opacity, 0, yOffset, 0);
                     else drawFrame(ctx, text1, text2, 1, opacity, 0, yOffset);
                     
-                    await new Promise(r => setTimeout(r, 1000 / FPS));
+                    await new Promise(r => requestAnimationFrame(r));
                 }
                  if (isSource) drawFrame(ctx, text1, null, 1, 0, 0, 0);
                  else drawFrame(ctx, text1, text2, 1, 1, 0, 0);
             };
 
             await animate(true);
-            await speakCallback(text1, sourceVoice);
-            if (!isPlaying) return;
+            await speak(text1, sourceVoice);
             await new Promise(r => setTimeout(r, 500));
-
             await animate(false);
-            await speakCallback(text2, targetVoice);
+            await speak(text2, targetVoice);
         };
 
-        const stopPresentation = () => {
-            isPlaying = false;
-            speechSynthesis.cancel();
-            presentationPanel.classList.add('hidden');
-            document.body.style.overflow = 'auto';
-            document.getElementById('presentation-progress').style.width = '0%';
-            presentationVideo.pause();
-        };
-        
-        // --- Event Listeners ---
-        document.getElementById('start-presentation-btn').addEventListener('click', runPresentation);
-        document.getElementById('exit-presentation').addEventListener('click', stopPresentation);
-        window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isPlaying) stopPresentation(); });
-        window.addEventListener('resize', () => {
-            if (isPlaying) {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
+        generateBtn.addEventListener('click', async () => {
+            generateBtn.disabled = true; generateBtn.classList.add('btn-disabled');
+            downloadLink.classList.add('hidden');
+            progressContainer.classList.remove('hidden'); progressBar.style.width = '0%';
+
+            const sentencePairs = document.getElementById('source-lang-text').value.split('\n')
+                .map((line, i) => ({ source: line.trim(), target: document.getElementById('english-text').value.split('\n')[i]?.trim() }))
+                .filter(p => p.source && p.target);
+
+            if (sentencePairs.length === 0) {
+                alert("Please ensure both text areas have an equal number of sentences.");
+                generateBtn.disabled = false; generateBtn.classList.remove('btn-disabled'); return;
             }
+
+            const stream = previewCanvas.captureStream(30);
+            mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: "video/webm" });
+                downloadLink.href = URL.createObjectURL(blob);
+                downloadLink.classList.remove('hidden');
+            };
+
+            mediaRecorder.start();
+            await previewVideo.play();
+
+            const ctx = previewCanvas.getContext('2d');
+            for (let i = 0; i < sentencePairs.length; i++) {
+                progressBar.style.width = `${((i + 1) / sentencePairs.length) * 100}%`;
+                progressBar.textContent = `Processing ${i + 1}/${sentencePairs.length}`;
+                await animateScene(ctx, sentencePairs[i].source, sentencePairs[i].target);
+                await new Promise(r => setTimeout(r, 1500)); // Pause between pairs
+            }
+            
+            mediaRecorder.stop();
+            previewVideo.pause();
+            generateBtn.disabled = false; generateBtn.classList.remove('btn-disabled');
         });
+        
+        // --- Event Listeners and Initial Load ---
         document.querySelectorAll('.btn-preview-voice').forEach(btn => {
             btn.addEventListener('click', () => {
                 const type = btn.dataset.type;
@@ -348,12 +342,13 @@
                 speak(`This is a preview of the selected voice.`, voiceSelect.value);
             });
         });
+        
         document.getElementById('video-upload').addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file && file.type.startsWith('video/')) {
                  if (file.size > 50 * 1024 * 1024) { alert('File is too large. Please select a video under 50MB.'); return; }
                 const url = URL.createObjectURL(file);
-                presentationVideo.src = url;
+                previewVideo.src = url;
                 document.querySelectorAll('#background-gallery .template-item').forEach(el => el.classList.remove('selected'));
                 alert('Custom video background selected.');
             } else {
@@ -361,7 +356,6 @@
             }
         });
 
-        // --- Initial Load ---
         initialize();
         window.showTab = showTab;
     </script>
