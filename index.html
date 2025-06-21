@@ -14,6 +14,10 @@
         .template-item.selected { border: 3px solid #4f46e5; transform: scale(1.05); }
         .btn-disabled { cursor: not-allowed; opacity: 0.5; }
         .hidden { display: none; }
+        /* Add a subtle animation to the background video */
+        #presentation-video {
+            transition: transform 30s linear;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200">
@@ -24,8 +28,8 @@
             <p class="text-lg text-gray-400 mt-2">The definitive tool for creating language learning videos.</p>
         </header>
         
-        <div id="status-indicator" class="text-center bg-gray-800 p-3 rounded-lg mb-6">
-            <p id="status-text" class="text-lg font-medium text-yellow-400">Initializing Video Engine... This may take a moment.</p>
+        <div id="status-indicator" class="text-center bg-green-800 p-3 rounded-lg mb-6">
+            <p id="status-text" class="text-lg font-medium text-green-300">Ready to create.</p>
         </div>
 
         <div class="tab-header flex border-b border-gray-700 mb-6 flex-wrap">
@@ -79,6 +83,7 @@
                              <select id="animationType" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 mt-1">
                                 <option value="fadeIn">Subtle Fade In</option>
                                 <option value="slideUp">Smooth Slide Up</option>
+                                <option value="reveal">Cinematic Reveal</option>
                             </select>
                         </div>
                     </div>
@@ -106,40 +111,39 @@
         <!-- GENERATE TAB -->
         <div id="generate" class="tab-content hidden">
              <div class="grid md:grid-cols-2 gap-8">
-                <div>
-                    <h2 class="text-2xl font-bold mb-4">Preview</h2>
-                    <div class="aspect-video bg-black rounded-lg overflow-hidden border-2 border-gray-700">
-                        <canvas id="preview-canvas"></canvas>
-                    </div>
-                </div>
                 <div class="flex flex-col justify-center">
                     <h2 class="text-2xl font-bold mb-4">Generate Your Video</h2>
                     <div class="bg-indigo-900/50 border border-indigo-700 text-indigo-200 px-4 py-3 rounded-lg mb-4">
                         <h4 class="font-bold">Important Notice</h4>
-                        <p class="text-sm">The final video file will be **silent** due to browser security. Audio will play from your speakers during generation. Use a screen recorder to capture the video with sound.</p>
+                        <p class="text-sm">This tool will generate a video with **live audio**. You must use a screen recorder to capture it. The download button will provide a silent version.</p>
                     </div>
-                     <button id="generate-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 btn-disabled" disabled>
-                        Generate Video
+                     <button id="generate-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
+                        Generate and Preview
                     </button>
                     <div class="w-full bg-gray-700 rounded-full h-4 mt-4 hidden" id="progress-container">
-                        <div id="progress-bar" class="bg-green-500 h-4 rounded-full text-xs text-black text-center font-bold leading-4 transition-width duration-300" style="width: 0%">0%</div>
+                        <div id="progress-bar" class="bg-green-500 h-4 rounded-full text-xs text-white text-center font-bold leading-4 transition-width duration-300" style="width: 0%"></div>
                     </div>
-                    <a id="download-link" class="hidden w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 mt-4" download="language_video.mp4">
-                        Download SILENT Video (.mp4)
+                    <a id="download-link" class="hidden w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 mt-4" download="language_video.webm">
+                        Download SILENT Video (.webm)
                     </a>
+                </div>
+                 <div>
+                    <h2 class="text-2xl font-bold mb-4">Live Preview</h2>
+                    <div class="aspect-video bg-black rounded-lg overflow-hidden border-2 border-gray-700 relative">
+                        <video id="preview-video" class="absolute w-full h-full object-cover" loop muted></video>
+                        <canvas id="preview-canvas" class="absolute w-full h-full"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- FFmpeg Script -->
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
-
     <script>
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        let ffmpeg;
+        let sentencePairs = [];
+        let mediaRecorder;
+        let recordedChunks = [];
 
-        // --- DOM Elements & State ---
+        // --- DOM Elements ---
         const allTabs = document.querySelectorAll('.tab-content');
         const allTabBtns = document.querySelectorAll('.tab-btn');
         const statusText = document.getElementById('status-text');
@@ -147,8 +151,9 @@
         const downloadLink = document.getElementById('download-link');
         const progressBar = document.getElementById('progress-bar');
         const progressContainer = document.getElementById('progress-container');
-        let selectedBackground = { type: 'video', url: 'https://cdn.pixabay.com/video/2023/08/23/176916-857508212_large.mp4' };
-
+        const previewCanvas = document.getElementById('preview-canvas');
+        const previewVideo = document.getElementById('preview-video');
+        
         // --- Core Functions ---
         const showTab = (tabId) => {
             allTabs.forEach(tab => tab.classList.add('hidden'));
@@ -162,24 +167,11 @@
         };
 
         const initialize = async () => {
-            try {
-                ffmpeg = createFFmpeg({
-                    log: true,
-                    corePath: "https://unpkg.com/@ffmpeg/core-st@0.11.0/dist/ffmpeg-core.js",
-                });
-                await ffmpeg.load();
-                statusText.textContent = "Engine Ready. Please add content to begin.";
-                statusText.parentElement.classList.replace('bg-gray-800', 'bg-green-900');
-                generateBtn.disabled = false;
-                generateBtn.classList.remove('btn-disabled');
-            } catch (err) {
-                statusText.textContent = "Error: Failed to load video engine. Please refresh.";
-                statusText.parentElement.classList.replace('bg-gray-800', 'bg-red-900');
-                console.error(err);
-            }
             await populateVoices();
             populateBackgrounds();
             showTab('content');
+            previewCanvas.width = 1280;
+            previewCanvas.height = 720;
         };
         
         // --- Voice & Speech ---
@@ -232,16 +224,17 @@
                 item.onclick = () => {
                     gallery.querySelectorAll('.template-item').forEach(el => el.classList.remove('selected'));
                     item.classList.add('selected');
-                    selectedBackground = bg;
+                    previewVideo.src = bg.url;
                 };
                 gallery.appendChild(item);
             });
+            previewVideo.src = backgrounds[0].url;
         };
 
         // --- Video Generation ---
-        const drawFrame = (ctx, bgFrame, text1, text2, opacity1, opacity2, yOffset1, yOffset2) => {
+        const drawFrame = (ctx, text1, text2, opacity1, opacity2, yOffset1, yOffset2) => {
             const { width, height } = ctx.canvas;
-            if (bgFrame) ctx.drawImage(bgFrame, 0, 0, width, height);
+            ctx.clearRect(0, 0, width, height); // Clear canvas for transparency
             ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
             ctx.fillRect(0, 0, width, height);
 
@@ -272,98 +265,89 @@
                 lines.forEach((line, i) => ctx.fillText(line, width / 2, height / 2 + (height / 10) - (totalHeight / 2) + (i * lineHeight) + yOffset2));
             }
         };
+        
+        const animateScene = async (ctx, text1, text2) => {
+            const animType = document.getElementById('animationType').value;
+            const sourceVoice = document.getElementById('sourceVoiceSelect').value;
+            const targetVoice = document.getElementById('targetVoiceSelect').value;
+
+            const fadeIn = async (isSource) => {
+                for (let i = 0; i <= 20; i++) {
+                    const opacity = i / 20;
+                    if (isSource) drawFrame(ctx, text1, null, opacity, 0, 0, 0);
+                    else drawFrame(ctx, text1, text2, 1, opacity, 0, 0);
+                    await new Promise(r => setTimeout(r, 25));
+                }
+            };
+
+            const slideUp = async (isSource) => {
+                 for (let i = 0; i <= 20; i++) {
+                    const yOffset = 30 * (1 - i / 20);
+                    if (isSource) drawFrame(ctx, text1, null, 1, 0, yOffset, 0);
+                    else drawFrame(ctx, text1, text2, 1, 1, 0, yOffset);
+                    await new Promise(r => setTimeout(r, 25));
+                }
+            };
+            
+            const reveal = async (isSource) => {
+                 for (let i = 0; i <= 20; i++) {
+                    const yOffset = 50 * (1 - i / 20);
+                    if (isSource) drawFrame(ctx, text1, null, 1, 0, yOffset, 0);
+                    else drawFrame(ctx, text1, text2, 1, 1, 0, yOffset);
+                    await new Promise(r => setTimeout(r, 25));
+                }
+            };
+
+            const animateIn = animType === 'slideUp' ? slideUp : (animType === 'reveal' ? reveal : fadeIn);
+
+            await animateIn(true);
+            await speak(text1, sourceVoice);
+            await new Promise(r => setTimeout(r, 500));
+            await animateIn(false);
+            await speak(text2, targetVoice);
+        };
 
         generateBtn.addEventListener('click', async () => {
             generateBtn.disabled = true; generateBtn.classList.add('btn-disabled');
             downloadLink.classList.add('hidden');
             progressContainer.classList.remove('hidden'); progressBar.style.width = '0%';
 
-            const sourceSentences = document.getElementById('source-lang-text').value.split('\n').filter(Boolean);
-            const englishSentences = document.getElementById('english-text').value.split('\n').filter(Boolean);
-            if (sourceSentences.length === 0 || sourceSentences.length !== englishSentences.length) {
+            sentencePairs = document.getElementById('source-lang-text').value.split('\n')
+                .map((line, i) => ({ source: line.trim(), target: document.getElementById('english-text').value.split('\n')[i]?.trim() }))
+                .filter(p => p.source && p.target);
+
+            if (sentencePairs.length === 0) {
                 alert("Please ensure both text areas have an equal number of sentences.");
                 generateBtn.disabled = false; generateBtn.classList.remove('btn-disabled'); return;
             }
 
-            const canvas = document.getElementById('preview-canvas');
-            const W = 1280, H = 720; canvas.width = W; canvas.height = H;
-            const ctx = canvas.getContext('2d');
+            const stream = previewCanvas.captureStream(30);
+            mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
             
-            // Load background video into ffmpeg
-            if (selectedBackground.type === 'file') {
-                ffmpeg.FS('writeFile', 'bg.mp4', await fetchFile(selectedBackground.file));
-            } else {
-                 ffmpeg.FS('writeFile', 'bg.mp4', await fetchFile(selectedBackground.url));
-            }
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: "video/webm" });
+                downloadLink.href = URL.createObjectURL(blob);
+                downloadLink.classList.remove('hidden');
+            };
 
-            const clipNames = [];
-            for (let i = 0; i < sourceSentences.length; i++) {
-                progressBar.style.width = `${((i + 1) / sourceSentences.length) * 100}%`;
-                progressBar.textContent = `${Math.round(((i + 1) / sourceSentences.length) * 100)}%`;
+            mediaRecorder.start();
+            previewVideo.play();
 
-                const source = sourceSentences[i], target = englishSentences[i];
-                const sourceDuration = Math.max(2.5, source.length / 15), targetDuration = Math.max(2.5, target.length / 15);
-                const totalDuration = sourceDuration + targetDuration + 1.5;
-
-                // Create a temporary canvas to extract frames from the background video
-                const bgCanvas = document.createElement('canvas');
-                bgCanvas.width = W; bgCanvas.height = H;
-                const bgCtx = bgCanvas.getContext('2d');
-                const bgVideoEl = document.createElement('video');
-                bgVideoEl.muted = true;
-                bgVideoEl.src = URL.createObjectURL(new Blob([ffmpeg.FS('readFile', 'bg.mp4')]));
-                
-
-                // Animate frames
-                const totalFrames = Math.ceil(totalDuration * 30); // FPS set to 30
-                for (let j = 0; j < totalFrames; j++) {
-                    const timeInSeconds = j / 30;
-                    bgVideoEl.currentTime = timeInSeconds % 10; // Loop background
-                    await new Promise(r => { bgVideoEl.onseeked = () => r(); if(bgVideoEl.seekable.length === 0) r();});
-                    bgCtx.drawImage(bgVideoEl, 0, 0, W, H);
-                    const bgFrame = bgCtx.canvas;
-
-                    let op1 = 0, op2 = 0, y1 = 0, y2 = 0;
-                    const animType = document.getElementById('animationType').value;
-                    const animStart1 = 0.5, animEnd1 = animStart1 + sourceDuration;
-                    const animStart2 = animEnd1 + 0.5;
-
-                    if (timeInSeconds >= animStart1) op1 = 1;
-                    if (timeInSeconds >= animStart2) op2 = 1;
-                    
-                    if (animType === 'fadeIn') {
-                        if(timeInSeconds >= animStart1 && timeInSeconds < animStart1 + 1) op1 = (timeInSeconds-animStart1);
-                        if(timeInSeconds >= animStart2 && timeInSeconds < animStart2 + 1) op2 = (timeInSeconds-animStart2);
-                    } else if (animType === 'slideUp') {
-                         if(timeInSeconds >= animStart1 && timeInSeconds < animStart1 + 1) { op1=1; y1 = (1 - (timeInSeconds-animStart1)*2) * 30; }
-                         if(timeInSeconds >= animStart2 && timeInSeconds < animStart2 + 1) { op2=1; y2 = (1 - (timeInSeconds-animStart2)*2) * 30; }
-                    }
-                    
-                    drawFrame(ctx, bgFrame, source, target, op1, op2, y1, y2);
-                    const frameData = ctx.getImageData(0, 0, W, H).data;
-                    await ffmpeg.FS('writeFile', `frame${j}.rgba`, frameData);
-                }
-                
-                // Create silent audio track
-                await ffmpeg.run('-f', 'lavfi', '-i', `anullsrc=r=44100`, '-t', `${totalDuration}`, `silent_audio_${i}.mp3`);
-                await ffmpeg.run('-r', `30`, '-s', `${W}x${H}`, '-pixel_format', 'rgba', '-i', 'frame%d.rgba', '-i', `silent_audio_${i}.mp3`, '-c:v', 'libx264', '-crf', '25', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', `clip_${i}.mp4`);
-                clipNames.push(`clip_${i}.mp4`);
-
-                await speak(source, document.getElementById('sourceVoiceSelect').value);
-                await speak(target, document.getElementById('targetVoiceSelect').value);
+            const ctx = previewCanvas.getContext('2d');
+            for (let i = 0; i < sentencePairs.length; i++) {
+                progressBar.style.width = `${((i + 1) / sentencePairs.length) * 100}%`;
+                progressBar.textContent = `Processing ${i + 1}/${sentencePairs.length}`;
+                await animateScene(ctx, sentencePairs[i].source, sentencePairs[i].target);
+                await new Promise(r => setTimeout(r, 1500)); // Pause between pairs
             }
             
-            const fileList = clipNames.map(name => `file '${name}'`).join('\n');
-            await ffmpeg.FS('writeFile', 'filelist.txt', fileList);
-            await ffmpeg.run('-f', 'concat', '-safe', '0', '-i', 'filelist.txt', '-c', 'copy', 'final_output.mp4');
-
-            const data = ffmpeg.FS('readFile', 'final_output.mp4');
-            downloadLink.href = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-            downloadLink.classList.remove('hidden');
-            
+            mediaRecorder.stop();
+            previewVideo.pause();
             generateBtn.disabled = false; generateBtn.classList.remove('btn-disabled');
         });
-
+        
         // --- Event Listeners and Initial Load ---
         document.querySelectorAll('.btn-preview-voice').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -376,13 +360,9 @@
         document.getElementById('video-upload').addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file && file.type.startsWith('video/')) {
-                 if (file.size > 50 * 1024 * 1024) {
-                    alert('File is too large. Please select a video under 50MB.');
-                    return;
-                }
+                 if (file.size > 50 * 1024 * 1024) { alert('File is too large. Please select a video under 50MB.'); return; }
                 const url = URL.createObjectURL(file);
-                selectedBackground = { type: 'file', url: url, file: file };
-                
+                previewVideo.src = url;
                 document.querySelectorAll('#background-gallery .template-item').forEach(el => el.classList.remove('selected'));
                 alert('Custom video background selected.');
             } else {
